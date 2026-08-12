@@ -2,6 +2,7 @@
 
 USE_PROCD=1
 START=99
+STOP=15
 
 CONF="uuplugin"
 PROG="/var/tmp/uu/uuplugin"
@@ -17,10 +18,16 @@ mipseluurl="https://router.uu.163.com/api/plugin?type=jd-hr06"
 SN=$(ip addr show br-lan | grep "link/ether" | awk '{print $2}')
 
 start_service() {
+	echo "经测试：此定制版UU加速器在FW3 iptables环境和FW4 nftables环境里加速都有效！"
+	echo "有问题可前往 https://github.com/lmq8267/luci-app-uugamebooster/issues 反馈。"
         config_load "$CONF"
 	local enabled 
-	config_get_bool enabled "$CONF" "enabled" "0"
+	#config_get_bool enabled "$CONF" "enabled" "0"
+	enabled="$(uci -q get uuplugin.@uuplugin[0].enabled)"
+	echo "UU=$enabled"
+	[ -z "$enabled" ] && enabled=0
 	[ "$enabled" -eq "1" ] || return 1
+	echo "start..."
 	cputype=$(uname -ms | tr ' ' '_' | tr '[A-Z]' '[a-z]')
 	[ -n "$(echo $cputype | grep -E "linux.*armv.*")" ] && cpucore="arm"
 	[ -n "$(echo $cputype | grep -E "linux.*aarch64.*|linux.*armv8.*")" ] && cpucore="aarch64"
@@ -28,21 +35,26 @@ start_service() {
            mipstype=$(echo -n I | hexdump -o 2>/dev/null | awk '{ print substr($2,6,1); exit}')
            [ "$mipstype" != "0" ] && cpucore="mipsel"
         fi
-	if [ -z "$(cpucore)" ]; then
+	if [ -z "$cpucore" ]; then
           echo "当前架构不符合，无法安装！此luci-app-uugamebooster安装包仅支持arm aarch64 mipsel架构！"
           uci -q set uuplugin.@uuplugin[0].enabled=0
           exit 1
         fi
         local model
-	config_get model "uuplugin" "model" "OpenWrt"
+	#config_get model "uuplugin" "model" "OpenWrt"
+	model="$(uci -q get uuplugin.@uuplugin[0].model)"
+	echo "model=$model"
+	[ -z "$model" ] && model="OpenWrt"
 	mkdir -p /var/tmp/uu
 	if [ "$cpucore" = "mipsel" ]; then
 		# jd系列需要haiapi
+		echo "部署京东定制版UU运行环境..."
 		echo "#!/bin/sh" > $UU_SN
 		echo "echo '{\"result\": [ {\"data\": { \"mac\": \"$SN\", \"model\": \"$model\" }, \"code\": \"0x0\" } ] }'" >> $UU_SN
 		[ ! -L /usr/bin/haiapi ] && ln -sf $UU_SN /usr/bin/haiapi
 		chmod u+x $UU_SN
 	else
+		echo "部署H3C定制版UU运行环境..."
 		echo "productname=$model" >$UU_INFO
 		echo "ethaddr=$SN" >>$UU_INFO
 		echo "hardversion=VER.A" >>$UU_INFO
@@ -110,6 +122,7 @@ start_service() {
 	procd_set_param stderr 1
 
 	procd_close_instance
+	echo "done"
 }
 
 reload_service() {

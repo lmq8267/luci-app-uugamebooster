@@ -6,7 +6,6 @@
 
 ![GitHub Release](https://img.shields.io/github/v/release/lmq8267/luci-app-uugamebooster?style=flat-square&color=e94560)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/lmq8267/luci-app-uugamebooster/build.yml?branch=master&style=flat-square&label=build)
-![GitHub License](https://img.shields.io/github/license/lmq8267/luci-app-uugamebooster?style=flat-square&color=blue)
 ![GitHub Stars](https://img.shields.io/github/stars/lmq8267/luci-app-uugamebooster?style=flat-square&color=yellow)
 ![OpenWrt](https://img.shields.io/badge/OpenWrt-22.03%2B-brightgreen?style=flat-square)
 ![Arch](https://img.shields.io/badge/Arch-arm%20%7C%20aarch64%20%7C%20mipsel-blueviolet?style=flat-square)
@@ -274,6 +273,7 @@ echo "当前架构不符合，无法安装！此luci-app-uugamebooster安装包�
 ## 依赖
 
 - `luci-compat`（LuCI 兼容层，运行时依赖）
+- `kmod-tun`（UU加速时会创建tun网卡接口）
 
 ## 许可证
 

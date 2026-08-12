@@ -18,7 +18,9 @@ o = s:option(Value, "model", translate("设备型号"),
         translate("本机设备型号，在APP里方便区分不同路由器，绑定后修改型号需要解绑后重新绑定才生效"))
 o.placeholder = "OpenWrt"
 
-
+o = s:option(Flag, "addfw", translate("添加防火墙放行规则"),
+        translate("如加速无效，可尝试勾选此开关，将自动配置防火墙放行，参考链接：<a href=\"https://router.uu.163.com/happ/qa/detail/675154eced42e98791b640a1?app=router\" target=\"_blank\">OpenWrt高版本固件加速设置</a>"))
+        
 mp:section(SimpleSection).template  = "uuplugin/uuplugin_qcode"
 
 mp.apply_on_parse = true

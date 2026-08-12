@@ -13,6 +13,7 @@ concurrency:
 env:
   PACKAGE_NAME: luci-app-uugamebooster
   PACKAGE_DIR: luci-app-uugamebooster
+  TZ: Asia/Shanghai
 
 permissions:
   contents: write
@@ -25,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { name: ipk, sdk_url: "https://mirrors.pku.edu.cn/openwrt/releases/25.12.0/targets/x86/64/openwrt-sdk-25.12.0-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst", sdk_tar: "SDK.tar.xz", sdk_dir: "SDK", artifact_pattern: "luci-app-uugamebooster_*.ipk" }
+          - { name: ipk, sdk_url: "https://downloads.openwrt.org/releases/22.03.0/targets/x86/64/openwrt-sdk-22.03.0-x86-64_gcc-11.2.0_musl.Linux-x86_64.tar.xz", sdk_tar: "SDK.tar.xz", sdk_dir: "SDK", artifact_pattern: "luci-app-uugamebooster_*.ipk" }
           - { name: apk, sdk_url: "snapshot", sdk_tar: "SNAPSDK.tar.zst", sdk_dir: "SNAPSDK", artifact_pattern: "luci-app-uugamebooster-*.apk" }
     steps:
       - name: 检出源码
@@ -97,6 +98,7 @@ jobs:
         run: |
           VERSION="$(awk -F ':=' '/^PKG_VERSION:=/ { print $2; exit }' "./${PACKAGE_DIR}/Makefile")"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date '+%Y年%m月%d日%H:%M:%S' | jq -sRr @uri)" >> $GITHUB_ENV
 
       - name: 下载 IPK 产物
         uses: actions/download-artifact@main
@@ -115,6 +117,14 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+             > ### ![](https://img.shields.io/badge/%E7%BC%96%E8%AF%91%E6%97%B6%E9%97%B4-${{ env.build_time }}-8267?logo=github&labelColor=%E9%A1%BB)![](https://img.shields.io/github/downloads/${{ github.repository }}/${{ steps.version.outputs.version }}/total?label=%E4%B8%8B%E8%BD%BD%E6%AC%A1%E6%95%B0&logo=github) 
+
+             - **[luci-app-uugamebooster-1.1-r1.apk](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/luci-app-uugamebooster-${{ steps.version.outputs.version }}-r1.apk) 是OpenWrt新版的APK包** 安装时要加跳过证书验证命令 `--allow-untrusted` 例如：
+             ```
+              apk add --allow-untrusted luci-app-uugamebooster-${{ steps.version.outputs.version }}-r1.apk
+             ```
+             
           files: |
             luci-app-uugamebooster_*.ipk
             luci-app-uugamebooster-*.apk

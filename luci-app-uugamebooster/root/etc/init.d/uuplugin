@@ -17,6 +17,94 @@ aarch64uurl="https://router.uu.163.com/api/plugin?type=h3c-nx30pro"
 mipseluurl="https://router.uu.163.com/api/plugin?type=jd-hr06"
 SN=$(ip addr show br-lan | grep "link/ether" | awk '{print $2}')
 
+get_uu_fw_zone() {
+	local cfg="$1"
+
+	[ "$(uci -q get firewall.$cfg.name)" = "UU加速器" ] || return
+	[ "$(uci -q get firewall.$cfg.device)" = "tun16+" ] || return
+	[ "$(uci -q get firewall.$cfg.ifname)" = "tun16+" ] || return
+	echo "$cfg"
+}
+
+get_uu_fw_forwarding() {
+	local cfg="$1"
+
+	[ "$(uci -q get firewall.$cfg.src)" = "lan" ] || return
+	[ "$(uci -q get firewall.$cfg.dest)" = "UU" ] || return
+	echo "$cfg"
+}
+
+add_firewall_rule() {
+	local addfw zone forwarding
+
+	addfw="$(uci -q get uuplugin.@uuplugin[0].addfw)"
+	[ -z "$addfw" ] && addfw=0
+	if [ "$addfw" -eq "1" ] ; then
+		zone="$(config_foreach get_uu_fw_zone zone)"
+		forwarding="$(config_foreach get_uu_fw_forwarding forwarding)"
+
+		if [ -n "$zone" ] && [ -n "$forwarding" ] ; then
+			echo "UU防火墙放行规则已存在，跳过添加。"
+			return
+		fi
+
+		echo "自动添加UU防火墙放行规则..."
+		if [ -z "$zone" ] ; then
+			uci add firewall zone
+			uci set firewall.@zone[-1].name='UU加速器'
+			uci set firewall.@zone[-1].input='ACCEPT'
+			uci set firewall.@zone[-1].output='ACCEPT'
+			uci set firewall.@zone[-1].forward='ACCEPT'
+			uci set firewall.@zone[-1].device='tun16+'
+			uci set firewall.@zone[-1].ifname='tun16+'
+		else
+			echo "UU防火墙区域已存在，跳过添加。"
+		fi
+
+		if [ -z "$forwarding" ] ; then
+			uci add firewall forwarding
+			uci set firewall.@forwarding[-1].src='lan'
+			uci set firewall.@forwarding[-1].dest='UU'
+		else
+			echo "UU防火墙转发规则已存在，跳过添加。"
+		fi
+
+		if [ -n "$(uci changes firewall)" ] ; then
+			echo "添加成功，开始重载防火墙..."
+			uci commit firewall && /etc/init.d/firewall reload >/dev/null 2>&1
+		fi
+	fi
+}
+
+del_firewall_rule() {
+	local zone forwarding deleted
+
+	config_load firewall
+	deleted=0
+
+	for forwarding in $(config_foreach get_uu_fw_forwarding forwarding); do
+		uci delete firewall.$forwarding
+		echo "已删除UU防火墙转发规则。"
+		deleted=1
+	done
+
+	for zone in $(config_foreach get_uu_fw_zone zone); do
+		uci delete firewall.$zone
+		echo "已删除UU防火墙区域。"
+		deleted=1
+	done
+
+	if [ "$deleted" -eq "0" ] ; then
+		echo "UU防火墙放行规则不存在，跳过删除。"
+		return
+	fi
+
+	if [ -n "$(uci changes firewall)" ] ; then
+		echo "删除成功，开始重载防火墙..."
+		uci commit firewall && /etc/init.d/firewall reload >/dev/null 2>&1
+	fi
+}
+
 start_service() {
 	echo "经测试：此定制版UU加速器在FW3 iptables环境和FW4 nftables环境里加速都有效！"
 	echo "有问题可前往 https://github.com/lmq8267/luci-app-uugamebooster/issues 反馈。"
@@ -122,7 +210,13 @@ start_service() {
 	procd_set_param stderr 1
 
 	procd_close_instance
+	config_load firewall
+	add_firewall_rule
 	echo "done"
+}
+
+stop_service() {
+	del_firewall_rule
 }
 
 reload_service() {
@@ -133,4 +227,3 @@ reload_service() {
 service_triggers() {
 	procd_add_reload_trigger uuplugin
 }
-

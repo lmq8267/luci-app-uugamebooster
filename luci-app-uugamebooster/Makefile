@@ -14,7 +14,9 @@ PKG_VERSION:=1.1
 
 define Package/$(PKG_NAME)/postinst
 #!/bin/sh
-chmod +x /etc/init.d/uuplugin
+if [ -z "$DESTDIR" ] && [ -z "$IPKG_INSTROOT" ]; then
+    chmod +x /etc/init.d/uuplugin
+fi
 endef
 include $(TOPDIR)/feeds/luci/luci.mk
 # call BuildPackage - OpenWrt buildroot signature
